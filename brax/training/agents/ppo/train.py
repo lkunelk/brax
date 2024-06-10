@@ -442,6 +442,7 @@ def train(
       progress_fn(current_step, metrics)
       params = _unpmap(
           (training_state.normalizer_params, training_state.params.policy))
+      params = params + (training_state,)
       policy_params_fn(current_step, make_policy, params)
 
   total_steps = current_step
