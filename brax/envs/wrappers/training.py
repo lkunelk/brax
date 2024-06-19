@@ -62,10 +62,11 @@ class VmapWrapper(Wrapper):
     super().__init__(env)
     self.batch_size = batch_size
 
-  def reset(self, rng: jax.Array) -> State:
+  def reset(self, rng: jax.Array, current_step) -> State:
     if self.batch_size is not None:
       rng = jax.random.split(rng, self.batch_size)
-    return jax.vmap(self.env.reset)(rng)
+      current_step = jp.ones(self.batch_size) * current_step
+    return jax.vmap(self.env.reset)(rng, current_step)
 
   def step(self, state: State, action: jax.Array) -> State:
     return jax.vmap(self.env.step)(state, action)
@@ -79,8 +80,8 @@ class EpisodeWrapper(Wrapper):
     self.episode_length = episode_length
     self.action_repeat = action_repeat
 
-  def reset(self, rng: jax.Array) -> State:
-    state = self.env.reset(rng)
+  def reset(self, rng: jax.Array, current_step) -> State:
+    state = self.env.reset(rng, current_step)
     state.info['steps'] = jp.zeros(rng.shape[:-1])
     state.info['truncation'] = jp.zeros(rng.shape[:-1])
     return state
@@ -153,8 +154,8 @@ class EvalMetrics:
 class EvalWrapper(Wrapper):
   """Brax env with eval metrics."""
 
-  def reset(self, rng: jax.Array) -> State:
-    reset_state = self.env.reset(rng)
+  def reset(self, rng: jax.Array, current_step) -> State:
+    reset_state = self.env.reset(rng, current_step)
     reset_state.metrics['reward'] = reset_state.reward
     eval_metrics = EvalMetrics(
         episode_metrics=jax.tree_util.tree_map(
@@ -212,12 +213,12 @@ class DomainRandomizationVmapWrapper(Wrapper):
     env.unwrapped.sys = sys
     return env
 
-  def reset(self, rng: jax.Array) -> State:
-    def reset(sys, rng):
+  def reset(self, rng: jax.Array, current_step) -> State:
+    def reset(sys, rng, current_step):
       env = self._env_fn(sys=sys)
-      return env.reset(rng)
+      return env.reset(rng, current_step)
 
-    state = jax.vmap(reset, in_axes=[self._in_axes, 0])(self._sys_v, rng)
+    state = jax.vmap(reset, in_axes=[self._in_axes, 0])(self._sys_v, rng, current_step)
     return state
 
   def step(self, state: State, action: jax.Array) -> State:

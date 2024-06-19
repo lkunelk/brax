@@ -224,7 +224,9 @@ def train(
   key_envs = jax.random.split(key_env, num_envs // process_count)
   key_envs = jnp.reshape(key_envs,
                          (local_devices_to_use, -1) + key_envs.shape[1:])
-  env_state = reset_fn(key_envs, jnp.zeros(key_envs.shape))
+  current_step_base = jnp.ones(num_envs // process_count)
+  current_step_base = current_step_base.reshape((local_devices_to_use, -1) + current_step_base.shape[1:])
+  env_state = reset_fn(key_envs, current_step_base * 0)
 
   normalize = lambda x, y: x
   if normalize_observations:
@@ -430,7 +432,7 @@ def train(
           lambda x, s: jax.random.split(x[0], s),
           in_axes=(0, None))(key_envs, key_envs.shape[1])
       # TODO: move extra reset logic to the AutoResetWrapper.
-      env_state = reset_fn(key_envs, jnp.ones(key_envs.shape) * current_step) if num_resets_per_eval > 0 else env_state
+      env_state = reset_fn(key_envs, current_step_base * current_step) if num_resets_per_eval > 0 else env_state
 
     if process_id == 0:
       # Run evals.
