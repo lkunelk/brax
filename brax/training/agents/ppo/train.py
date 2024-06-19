@@ -409,7 +409,8 @@ def train(
     metrics = evaluator.run_evaluation(
         _unpmap(
             (training_state.normalizer_params, training_state.params.policy)),
-        training_metrics={})
+        training_metrics={},
+        current_step = 0)
     logging.info(metrics)
     progress_fn(0, metrics)
 
@@ -439,7 +440,8 @@ def train(
       metrics = evaluator.run_evaluation(
           _unpmap(
               (training_state.normalizer_params, training_state.params.policy)),
-          training_metrics)
+          training_metrics,
+          current_step=current_step)
       logging.info(metrics)
       progress_fn(current_step, metrics)
       params = _unpmap(

@@ -101,9 +101,10 @@ class Evaluator:
     eval_env = envs.training.EvalWrapper(eval_env)
 
     def generate_eval_unroll(policy_params: PolicyParams,
-                             key: PRNGKey) -> State:
+                             key: PRNGKey,
+                             current_step: int) -> State:
       reset_keys = jax.random.split(key, num_eval_envs)
-      eval_first_state = eval_env.reset(reset_keys)
+      eval_first_state = eval_env.reset(reset_keys, np.ones(num_eval_envs) * current_step)
       return generate_unroll(
           eval_env,
           eval_first_state,
@@ -117,12 +118,14 @@ class Evaluator:
   def run_evaluation(self,
                      policy_params: PolicyParams,
                      training_metrics: Metrics,
-                     aggregate_episodes: bool = True) -> Metrics:
+                     aggregate_episodes: bool = True,
+                     current_step: int = 0
+                     ) -> Metrics:
     """Run one epoch of evaluation."""
     self._key, unroll_key = jax.random.split(self._key)
 
     t = time.time()
-    eval_state = self._generate_eval_unroll(policy_params, unroll_key)
+    eval_state = self._generate_eval_unroll(policy_params, unroll_key, current_step)
     eval_metrics = eval_state.info['eval_metrics']
     eval_metrics.active_episodes.block_until_ready()
     epoch_eval_time = time.time() - t
